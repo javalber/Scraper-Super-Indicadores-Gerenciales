@@ -2,8 +2,8 @@ name: Monitor Superfinanciera
 
 on:
   schedule:
-    - cron: "0 13,19 * * *"  # 08:00 am y 02:00 pm (hora Colombia)
-  workflow_dispatch:        # Permite ejecutar manualmente
+    - cron: "0 13,19 * * *"  # 08:00 y 14:00 hora Colombia
+  workflow_dispatch:
 
 jobs:
   check_new_report:
@@ -22,6 +22,17 @@ jobs:
         run: pip install requests beautifulsoup4
 
       - name: Run scraper
-        run: python scrap_sup_ind.py
+        id: scraping
+        run: |
+          python scrap_sup_ind.py
         env:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+
+      - name: Commit changes if new month
+        if: steps.scraping.outcome == 'failure' # exit code 1 triggers this
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ultimo_mes.txt
+          git commit -m "Actualizar último mes detectado: $(cat ultimo_mes.txt)"
+          git push

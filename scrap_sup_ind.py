@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import smtplib
 from email.mime.text import MIMEText
 import os
+import sys
 
 # --- Configuración ---
 URL = "https://www.superfinanciera.gov.co/publicaciones/10084493/informes-y-cifrascifrasestablecimientos-de-creditoinformacion-periodicamensualindicadores-gerenciales-niif-10084493/"
@@ -17,7 +18,6 @@ def obtener_ultimo_mes():
     r = requests.get(URL)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    # Extrae todos los enlaces de texto que parecen “Indicadores Gerenciales – Mes Año”
     textos = []
     for a in soup.find_all("a"):
         txt = a.get_text(strip=True)
@@ -27,7 +27,6 @@ def obtener_ultimo_mes():
     if not textos:
         return None
 
-    # Asume que el primero de la lista es el más reciente
     return textos[0]
 
 def leer_ultimo_guardado():
@@ -58,9 +57,17 @@ def enviar_correo(nuevo_mes):
 ultimo_mes_actual = obtener_ultimo_mes()
 ultimo_guardado = leer_ultimo_guardado()
 
-if ultimo_mes_actual and ultimo_mes_actual != ultimo_guardado:
+if ultimo_mes_actual is None:
+    print("No se pudo extraer ningún mes.")
+    sys.exit(0)
+
+if ultimo_guardado != ultimo_mes_actual:
+    print(f"Detectado nuevo mes: {ultimo_mes_actual}")
     enviar_correo(ultimo_mes_actual)
     guardar_mes(ultimo_mes_actual)
-    print(f"Nuevo mes detectado y notificado: {ultimo_mes_actual}")
+    # indicar que hubo cambio
+    sys.exit(1)
 else:
     print("No hay nuevo mes.")
+    sys.exit(0)
+
