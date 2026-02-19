@@ -1,0 +1,27 @@
+name: Monitor Superfinanciera
+
+on:
+  schedule:
+    - cron: "0 13,19 * * *"  # 08:00 am y 02:00 pm (hora Colombia)
+  workflow_dispatch:        # Permite ejecutar manualmente
+
+jobs:
+  check_new_report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run scraper
+        run: python scrap_sup_ind.py
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
