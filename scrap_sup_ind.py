@@ -4,6 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 import os
 import sys
+import re
 
 # --- Configuración ---
 URL = "https://www.superfinanciera.gov.co/publicaciones/10084493/informes-y-cifrascifrasestablecimientos-de-creditoinformacion-periodicamensualindicadores-gerenciales-niif-10084493/"
@@ -14,6 +15,20 @@ DESTINO = "jflor35@bancodebogota.com.co"
 ARCHIVO_MESES = "ultimo_mes.txt"
 
 # --- Funciones ---
+def es_titulo_indicadores_gerenciales(texto):
+    texto_normalizado = texto.strip().casefold()
+
+    if not texto_normalizado.startswith("indicadores gerenciales"):
+        return False
+
+    # Evita tomar encabezados genéricos (por ejemplo: "Indicadores Gerenciales-NIIF")
+    # y exige que el título parezca una publicación mensual.
+    meses = (
+        "enero|febrero|marzo|abril|mayo|junio|julio|agosto|"
+        "septiembre|setiembre|octubre|noviembre|diciembre"
+    )
+    return bool(re.search(rf"\b({meses})\b", texto_normalizado))
+
 def obtener_ultimo_mes():
     r = requests.get(URL)
     soup = BeautifulSoup(r.text, "html.parser")
@@ -21,7 +36,7 @@ def obtener_ultimo_mes():
     textos = []
     for a in soup.find_all("a"):
         txt = a.get_text(strip=True)
-        if txt.lower().startswith("indicadores gerenciales"):
+        if es_titulo_indicadores_gerenciales(txt):
             textos.append(txt)
 
     if not textos:
@@ -70,4 +85,3 @@ if ultimo_guardado != ultimo_mes_actual:
 else:
     print("No hay nuevo mes.")
     sys.exit(0)
-
