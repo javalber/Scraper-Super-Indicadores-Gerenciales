@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 import os
 import sys
 import re
+import unicodedata
 
 # --- Configuración ---
 URL = "https://www.superfinanciera.gov.co/publicaciones/10084493/informes-y-cifrascifrasestablecimientos-de-creditoinformacion-periodicamensualindicadores-gerenciales-niif-10084493/"
@@ -15,34 +16,63 @@ DESTINO = "jflor35@bancodebogota.com.co"
 ARCHIVO_MESES = "ultimo_mes.txt"
 
 # --- Funciones ---
-def es_titulo_indicadores_gerenciales(texto):
-    texto_normalizado = texto.strip().casefold()
+MESES_NUMERO = {
+    "enero": 1,
+    "febrero": 2,
+    "marzo": 3,
+    "abril": 4,
+    "mayo": 5,
+    "junio": 6,
+    "julio": 7,
+    "agosto": 8,
+    "septiembre": 9,
+    "setiembre": 9,
+    "octubre": 10,
+    "noviembre": 11,
+    "diciembre": 12,
+}
+
+
+def normalizar_texto(texto):
+    texto = unicodedata.normalize("NFD", texto)
+    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    return texto.strip().casefold()
+
+
+def extraer_periodo(texto):
+    texto_normalizado = normalizar_texto(texto)
 
     if not texto_normalizado.startswith("indicadores gerenciales"):
-        return False
+        return None
 
-    # Evita tomar encabezados genéricos (por ejemplo: "Indicadores Gerenciales-NIIF")
-    # y exige que el título parezca una publicación mensual.
-    meses = (
-        "enero|febrero|marzo|abril|mayo|junio|julio|agosto|"
-        "septiembre|setiembre|octubre|noviembre|diciembre"
+    match = re.search(
+        r"\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b\D*(\d{4})",
+        texto_normalizado,
     )
-    return bool(re.search(rf"\b({meses})\b", texto_normalizado))
+    if not match:
+        return None
+
+    mes = MESES_NUMERO[match.group(1)]
+    anio = int(match.group(2))
+    return anio, mes
+
 
 def obtener_ultimo_mes():
     r = requests.get(URL)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    textos = []
+    candidatos = []
     for a in soup.find_all("a"):
         txt = a.get_text(strip=True)
-        if es_titulo_indicadores_gerenciales(txt):
-            textos.append(txt)
+        periodo = extraer_periodo(txt)
+        if periodo is not None:
+            candidatos.append((periodo, txt))
 
-    if not textos:
+    if not candidatos:
         return None
 
-    return textos[0]
+    # Escoge el periodo más reciente, sin depender del orden de los links en la página.
+    return max(candidatos, key=lambda item: item[0])[1]
 
 def leer_ultimo_guardado():
     if not os.path.exists(ARCHIVO_MESES):
