@@ -14,6 +14,7 @@ GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
 DESTINO = "jflor35@bancodebogota.com.co"
 
 ARCHIVO_MESES = "ultimo_mes.txt"
+DEBUG_EXTRACCION = os.environ.get("DEBUG_EXTRACCION", "0") == "1"
 
 # --- Funciones ---
 MESES_NUMERO = {
@@ -58,7 +59,7 @@ def extraer_periodo(texto):
 
 
 def obtener_ultimo_mes():
-    r = requests.get(URL)
+    r = requests.get(URL, timeout=30)
     soup = BeautifulSoup(r.text, "html.parser")
 
     candidatos = []
