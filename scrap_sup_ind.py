@@ -33,21 +33,6 @@ MESES_NUMERO = {
     "diciembre": 12,
 }
 
-MESES_NOMBRE = {
-    1: "Enero",
-    2: "Febrero",
-    3: "Marzo",
-    4: "Abril",
-    5: "Mayo",
-    6: "Junio",
-    7: "Julio",
-    8: "Agosto",
-    9: "Septiembre",
-    10: "Octubre",
-    11: "Noviembre",
-    12: "Diciembre",
-}
-
 
 def normalizar_texto(texto):
     texto = unicodedata.normalize("NFD", texto)
@@ -57,6 +42,9 @@ def normalizar_texto(texto):
 
 def extraer_periodo(texto):
     texto_normalizado = normalizar_texto(texto)
+
+    if not texto_normalizado.startswith("indicadores gerenciales"):
+        return None
 
     match = re.search(
         r"\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b\D*(\d{4})",
@@ -70,50 +58,22 @@ def extraer_periodo(texto):
     return anio, mes
 
 
-def construir_titulo_periodo(periodo):
-    anio, mes = periodo
-    return f"Indicadores Gerenciales – {MESES_NOMBRE[mes]} {anio}"
-
-
 def obtener_ultimo_mes():
     r = requests.get(URL, timeout=30)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    if DEBUG_EXTRACCION:
-        print(f"DEBUG status={r.status_code} url={r.url} anchors={len(soup.find_all('a'))}")
-
     candidatos = []
-    muestras = []
     for a in soup.find_all("a"):
-        txt = a.get_text(" ", strip=True)
-        item_lista = a.find_parent("li")
-        texto_contexto = item_lista.get_text(" ", strip=True) if item_lista else txt
-
-        contexto_norm = normalizar_texto(texto_contexto)
-        if "indicadores gerenciales" not in contexto_norm:
-            if DEBUG_EXTRACCION and len(muestras) < 15 and re.search(r"\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b", contexto_norm):
-                muestras.append(f"DESCARTADO(no contexto): {texto_contexto[:160]}")
-            continue
-
-        periodo = extraer_periodo(texto_contexto)
+        txt = a.get_text(strip=True)
+        periodo = extraer_periodo(txt)
         if periodo is not None:
-            candidatos.append(periodo)
-            if DEBUG_EXTRACCION and len(muestras) < 15:
-                muestras.append(f"CANDIDATO: {texto_contexto[:160]} => {periodo}")
-        elif DEBUG_EXTRACCION and len(muestras) < 15:
-            muestras.append(f"DESCARTADO(sin periodo): {texto_contexto[:160]}")
-
-    if DEBUG_EXTRACCION:
-        for linea in muestras:
-            print(f"DEBUG {linea}")
-        print(f"DEBUG total_candidatos={len(candidatos)}")
+            candidatos.append((periodo, txt))
 
     if not candidatos:
         return None
 
     # Escoge el periodo más reciente, sin depender del orden de los links en la página.
-    ultimo_periodo = max(candidatos)
-    return construir_titulo_periodo(ultimo_periodo)
+    return max(candidatos, key=lambda item: item[0])[1]
 
 def leer_ultimo_guardado():
     if not os.path.exists(ARCHIVO_MESES):
