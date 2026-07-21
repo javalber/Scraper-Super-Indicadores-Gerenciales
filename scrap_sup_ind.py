@@ -112,6 +112,14 @@ def guardar_mes(mes):
         f.write(mes)
 
 
+def marcar_salida_github(nombre, valor):
+    """Escribe una salida para GitHub Actions (si está disponible)."""
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a", encoding="utf-8") as f:
+            f.write(f"{nombre}={valor}\n")
+
+
 def enviar_correo(nuevo_mes):
     asunto = f"Nuevo informe disponible: {nuevo_mes}"
     cuerpo = f"Se ha publicado un nuevo mes en Superfinanciera:\n\n{nuevo_mes}\n\n{URL}"
@@ -139,8 +147,10 @@ if ultimo_guardado != ultimo_mes_actual:
     print(f"Detectado nuevo mes: {ultimo_mes_actual}")
     enviar_correo(ultimo_mes_actual)
     guardar_mes(ultimo_mes_actual)
-    # indicar que hubo cambio
-    sys.exit(1)
+    # Señal para que GitHub Actions haga el commit automático de ultimo_mes.txt
+    marcar_salida_github("nuevo", "true")
 else:
     print("No hay nuevo mes.")
-    sys.exit(0)
+    marcar_salida_github("nuevo", "false")
+
+sys.exit(0)
